@@ -1,2 +1,1 @@
-export { SQLocal } from './client.js';
-export { makeDbAvailable } from './makeDbAvailable.js';
+export * from './util/index.js';

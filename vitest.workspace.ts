@@ -10,16 +10,16 @@ export default defineWorkspace([
 			include: ['**/*.test.node.ts'],
 		},
 	},
-	// {
-	// 	extends: './vite.config.ts',
-	// 	test: {
-	// 		name: 'browser',
-	// 		include: [...defaultInclude, '**/*.test.ts'],
-	// 		browser: {
-	// 			enabled: true,
-	// 			headless: true,
-	// 			name: 'chrome',
-	// 		},
-	// 	},
-	// },
+	{
+		extends: './vite.config.ts',
+		test: {
+			name: 'browser',
+			include: [...defaultInclude, '**/*.test.ts'],
+			// browser: {
+			// 	enabled: true,
+			// 	headless: true,
+			// 	name: 'chrome',
+			// },
+		},
+	},
 ]);

@@ -1,12 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { Generated, Kysely } from 'kysely';
-import { SQLocalKysely } from '../../src/kysely';
+import {
+	Generated,
+	Kysely,
+	SqliteAdapter,
+	SqliteIntrospector,
+	SqliteQueryCompiler,
+} from 'kysely';
+import { SqliteWasmDriver } from '../../src/kysely';
 import { sleep } from '../test-utils/sleep';
+import { createInMemoryDatabase } from '../../src';
 
 describe('kysely dialect', () => {
-	const { dialect, transaction } = new SQLocalKysely(
-		'kysely-dialect-test.sqlite3'
-	);
+	// const { dialect, transaction } = new SQLocalKysely(
+	// 	'kysely-dialect-test.sqlite3'
+	// );
+
+	const dialect = {
+		createAdapter: () => new SqliteAdapter(),
+		createDriver: () =>
+			new SqliteWasmDriver({
+				database: createInMemoryDatabase({
+					readOnly: false,
+				}),
+			}),
+		createIntrospector: (db) => new SqliteIntrospector(db),
+		createQueryCompiler: () => new SqliteQueryCompiler(),
+	};
 	const db = new Kysely<DB>({ dialect });
 
 	type DB = {
@@ -51,11 +70,25 @@ describe('kysely dialect', () => {
 			expect(insert1).toEqual([{ name: item }]);
 		}
 
+		const insert2 = await db
+			.insertInto('groceries')
+			.values({ name: 'schnitzel' })
+			// .returning(['name'])
+			.execute();
+
+		expect(insert2).toEqual([
+			{
+				insertId: 4n, // we inserted 3 elemnts starting from 1 - so it shoulud be 4
+				numInsertedOrUpdatedRows: 1,
+			},
+		]);
+
 		const select1 = await db.selectFrom('groceries').selectAll().execute();
 		expect(select1).toEqual([
 			{ id: 1, name: 'bread' },
 			{ id: 2, name: 'milk' },
 			{ id: 3, name: 'rice' },
+			{ id: 4, name: 'schnitzel' },
 		]);
 
 		const delete1 = await db
@@ -65,6 +98,12 @@ describe('kysely dialect', () => {
 			.execute();
 		expect(delete1).toEqual([{ id: 2, name: 'milk' }]);
 
+		const delete2 = await db
+			.deleteFrom('groceries')
+			.where('id', '=', 4)
+			.execute();
+		expect(delete2).toEqual([{ numDeletedRows: 1 }]);
+
 		const update1 = await db
 			.updateTable('groceries')
 			.set({ name: 'white rice' })
@@ -72,6 +111,13 @@ describe('kysely dialect', () => {
 			.returning(['name'])
 			.execute();
 		expect(update1).toEqual([{ name: 'white rice' }]);
+
+		const update2 = await db
+			.updateTable('groceries')
+			.set({ name: 'white rice' })
+			.where('id', '=', 3)
+			.execute();
+		expect(update2).toEqual([{ numUpdatedRows: 1 }]);
 
 		const select2 = await db
 			.selectFrom('groceries')
@@ -85,20 +131,16 @@ describe('kysely dialect', () => {
 		const productName = 'rice';
 		const productPrice = 2.99;
 
-		const newProductId = await transaction(async (tx) => {
-			const [product] = await tx.query(
-				db
-					.insertInto('groceries')
-					.values({ name: productName })
-					.returningAll()
-					.compile()
-			);
-			await tx.query(
-				db
-					.insertInto('prices')
-					.values({ groceryId: product.id, price: productPrice })
-					.compile()
-			);
+		const newProductId = await db.transaction().execute(async (tx) => {
+			const [product] = await tx
+				.insertInto('groceries')
+				.values({ name: productName })
+				.returningAll()
+				.execute();
+			await tx
+				.insertInto('prices')
+				.values({ groceryId: product.id, price: productPrice })
+				.execute();
 			return product.id;
 		});
 
@@ -111,38 +153,33 @@ describe('kysely dialect', () => {
 	});
 
 	it('should rollback failed transaction using sqlocal way', async () => {
-		const recordCount = await transaction(async ({ query }) => {
-			await query(
-				db.insertInto('groceries').values({ name: 'carrots' }).compile()
-			);
-			await query(
-				db
+		const recordCount = await db
+			.transaction()
+			.execute(async (tx) => {
+				await tx.insertInto('groceries').values({ name: 'carrots' }).execute();
+				await tx
 					.insertInto('groeries' as any)
 					.values({ name: 'lettuce' })
-					.compile()
-			);
-			const data = await query(
-				db.selectFrom('groceries').selectAll().compile()
-			);
-			return data.length;
-		}).catch(() => null);
+					.execute();
 
+				const data = tx.selectFrom('groceries').selectAll().execute();
+				return data.length;
+			})
+			.catch(() => null);
 		expect(recordCount).toBe(null);
-
 		const data = await db.selectFrom('groceries').selectAll().execute();
 		expect(data.length).toBe(0);
 	});
 
 	it('should isolate transaction mutations using sqlocal way', async () => {
 		const order: number[] = [];
-
 		await Promise.all([
-			transaction(async ({ query }) => {
+			db.transaction().execute(async (tx) => {
 				order.push(1);
-				await query(db.insertInto('groceries').values({ name: 'a' }).compile());
+				tx.insertInto('groceries').values({ name: 'a' }).execute();
 				await sleep(200);
 				order.push(3);
-				await query(db.insertInto('groceries').values({ name: 'b' }).compile());
+				tx.insertInto('groceries').values({ name: 'b' }).execute();
 			}),
 			(async () => {
 				await sleep(100);
@@ -150,9 +187,7 @@ describe('kysely dialect', () => {
 				await db.updateTable('groceries').set({ name: 'x' }).execute();
 			})(),
 		]);
-
 		const data = await db.selectFrom('groceries').select(['name']).execute();
-
 		expect(data).toEqual([{ name: 'x' }, { name: 'x' }]);
 		expect(order).toEqual([1, 2, 3]);
 	});

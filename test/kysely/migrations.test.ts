@@ -1,17 +1,35 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { SQLocalKysely } from '../../src/kysely';
-import { Kysely, Migrator } from 'kysely';
+import { SqliteWasmDriver } from '../../src/kysely';
+import {
+	Kysely,
+	Migrator,
+	SqliteAdapter,
+	SqliteIntrospector,
+	SqliteQueryCompiler,
+} from 'kysely';
+import { createInMemoryDatabase } from '../../src';
 
 describe('kysely migrations', () => {
-	const databasePath = 'kysely-migrations-test.sqlite3';
-	const { dialect } = new SQLocalKysely(databasePath);
-	const db = new Kysely({ dialect });
+	const dialect = {
+		createAdapter: () => new SqliteAdapter(),
+		createDriver: () =>
+			new SqliteWasmDriver({
+				database: createInMemoryDatabase({
+					readOnly: false,
+				}),
+			}),
+		createIntrospector: (db) => new SqliteIntrospector(db),
+		createQueryCompiler: () => new SqliteQueryCompiler(),
+	};
+	const db = new Kysely({
+		dialect: dialect,
+	});
 
 	const migrator = new Migrator({
 		db,
 		provider: {
 			async getMigrations() {
-				const { migrations } = await import('./migrations/');
+				const { migrations } = await import('./migrations');
 				return migrations;
 			},
 		},
@@ -29,8 +47,8 @@ describe('kysely migrations', () => {
 	};
 
 	afterEach(async () => {
-		const opfs = await navigator.storage.getDirectory();
-		await opfs.removeEntry(databasePath);
+		// const opfs = await navigator.storage.getDirectory();
+		// await opfs.removeEntry(databasePath);
 	});
 
 	it('should migrate the database', async () => {
