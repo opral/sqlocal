@@ -41,6 +41,7 @@ export class SqliteWasmConnection implements DatabaseConnection {
 		// console.log('sql: ' + sql);
 		// console.log('result: ', rows);
 		// We don't have knowledge about rather its update/delete/or select - so we return the results
+		// @ts-expect-error - TODO for @martin-lysk - typescript complains
 		return Promise.resolve({
 			numAffectedRows: changes,
 			insertId: lastInsertId,
@@ -51,6 +52,7 @@ export class SqliteWasmConnection implements DatabaseConnection {
 	}
 
 	async *streamQuery<R>(
+		// @ts-ignore - unsued variable
 		compiledQuery: CompiledQuery,
 		_chunkSize: number
 	): AsyncIterableIterator<QueryResult<R>> {

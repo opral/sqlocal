@@ -1,6 +1,4 @@
-import { DatabaseMetadata } from 'kysely';
 import { sqliteModule } from '../kysely/sqlite3InitModule.js';
-import { createInMemoryDatabase } from './createInMemoryDatabase.js';
 import { Database } from '@sqlite.org/sqlite-wasm';
 
 export const importDatabase = ({
