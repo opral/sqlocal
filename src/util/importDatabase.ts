@@ -1,23 +1,22 @@
+import { DatabaseMetadata } from 'kysely';
 import { sqliteModule } from '../kysely/sqlite3InitModule.js';
 import { createInMemoryDatabase } from './createInMemoryDatabase.js';
+import { Database } from '@sqlite.org/sqlite-wasm';
 
-export const loadInMemoryDatabase = ({
+export const importDatabase = ({
+	db,
 	content,
 	schema = 'main',
 	readOnly = false,
 }: {
-	content: ArrayBuffer;
-	schema: string;
-	readOnly: boolean;
+	db: Database;
+	content: Uint8Array;
+	schema?: string;
+	readOnly?: boolean;
 }) => {
 	const deserializeFlag = readOnly
 		? sqliteModule.capi.SQLITE_DESERIALIZE_READONLY
 		: sqliteModule.capi.SQLITE_DESERIALIZE_FREEONCLOSE;
-
-	// call create database
-	const db = createInMemoryDatabase({
-		readOnly,
-	});
 
 	const contentPointer = sqliteModule.wasm.allocFromTypedArray(content);
 	const deserializeReturnCode = sqliteModule.capi.sqlite3_deserialize(
