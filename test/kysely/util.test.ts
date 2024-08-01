@@ -91,7 +91,7 @@ describe('kysely dialect', () => {
 		importDatabase({ db: sqliteDb2, content: db1Blob });
 
 		const select2 = await db2.selectFrom('groceries').selectAll().execute();
-		expect(select1).toEqual([
+		expect(select2).toEqual([
 			{ id: 1, name: 'bread' },
 			{ id: 2, name: 'milk' },
 			{ id: 3, name: 'rice' },
