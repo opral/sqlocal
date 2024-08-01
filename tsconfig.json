@@ -22,6 +22,6 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["src"],
+	"include": ["src", "test/test-utils/worker-stub.ts"],
 	"exclude": ["**/node_modules/**", "dist"]
 }

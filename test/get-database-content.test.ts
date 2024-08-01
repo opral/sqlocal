@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { SQLocal } from '../src/index';
+import { SQLix, SQLocal } from '../src/index';
 
 describe('getDatabaseContent', () => {
 	const fileName = 'get-database-file-test.sqlite3';
@@ -23,7 +23,7 @@ describe('getDatabaseContent', () => {
 	});
 
 	it('should return the requested database content in memory', async () => {
-		const { sql, getDatabaseContent } = new SQLocal({
+		const { sql, getDatabaseContent } = new SQLix({
 			storage: {
 				type: 'memory',
 			},

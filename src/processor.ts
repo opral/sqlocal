@@ -35,12 +35,12 @@ export class SQLocalProcessor {
 	protected transactionMutex = createMutex();
 	protected transactionKey: QueryKey | null = null;
 
-	protected proxy: WorkerProxy;
+	// protected proxy: WorkerProxy;
 
 	onmessage: ((message: OutputMessage) => void) | undefined;
 
-	constructor(worker: typeof globalThis) {
-		this.proxy = coincident(worker) as WorkerProxy;
+	constructor() {
+		// this.proxy = coincident(worker) as WorkerProxy;
 		this.init();
 	}
 
@@ -308,26 +308,27 @@ export class SQLocalProcessor {
 					args: args,
 				});
 			};
-		} else {
-			func = this.proxy[`_sqlocal_func_${functionName}`];
-		}
+			// } else {
+			// 	// func = this.proxy[`_sqlocal_func_${functionName}`];
+			// }
 
-		try {
-			this.initUserFunction({
-				type: functionType,
-				name: functionName,
-				func,
-			});
-			this.emitMessage({
-				type: 'success',
-				queryKey,
-			});
-		} catch (error) {
-			this.emitMessage({
-				type: 'error',
-				error,
-				queryKey,
-			});
+			try {
+				this.initUserFunction({
+					type: functionType,
+					name: functionName,
+					func,
+				});
+				this.emitMessage({
+					type: 'success',
+					queryKey,
+				});
+			} catch (error) {
+				this.emitMessage({
+					type: 'error',
+					error,
+					queryKey,
+				});
+			}
 		}
 	};
 

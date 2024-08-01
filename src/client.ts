@@ -28,11 +28,17 @@ import { convertRowsToObjects } from './lib/convert-rows-to-objects.js';
 import { normalizeStatement } from './lib/normalize-statement.js';
 import { getQueryKey } from './lib/get-query-key.js';
 import { normalizeSql } from './lib/normalize-sql.js';
+import { Endpoint } from './utils/node-adapter.js';
+
+
+// SQLite can run in different setups
+//  - using native c binding like https://www.npmjs.com/package/better-sqlite3
+// - 
 
 export class SQLocal {
 	protected config: ClientConfig;
-	protected worker: Worker;
-	protected proxy: WorkerProxy;
+	protected worker: Endpoint;
+	// protected proxy: WorkerProxy;
 	protected isWorkerDestroyed: boolean = false;
 	protected userCallbacks = new Map<string, CallbackUserFunction['func']>();
 	protected queriesInProgress = new Map<
@@ -43,22 +49,27 @@ export class SQLocal {
 		]
 	>();
 
-	constructor(databasePath: string);
-	constructor(config: ClientConfig);
-	constructor(config: string | ClientConfig) {
+	constructor(databasePath: string, dbEndpoint?: Endpoint);
+	constructor(config: ClientConfig, dbEndpoint?: Endpoint);
+	constructor(config: string | ClientConfig, dbEndpoint?: Endpoint) {
 		config =
 			typeof config === 'string'
 				? { storage: { path: config, type: 'opfs' } }
 				: config;
 
-		this.worker = new Worker(new URL('./worker', import.meta.url), {
-			type: 'module',
-		});
+		if (dbEndpoint) {
+			this.worker = dbEndpoint;
+		} else {
+			this.worker = new Worker(new URL('./worker', import.meta.url), {
+				type: 'module',
+			});
+		}
+
 		this.worker.addEventListener('message', this.processMessageEvent);
 
-		this.proxy = coincident(this.worker) as WorkerProxy;
+		// this.proxy = coincident(this.worker as any) as WorkerProxy;
 		this.config = config;
-		this.worker.postMessage({
+		dbEndpoint!.postMessage({
 			type: 'config',
 			config,
 		} satisfies ConfigMessage);
@@ -323,7 +334,7 @@ export class SQLocal {
 			functionType: 'scalar',
 		});
 
-		this.proxy[`_sqlocal_func_${funcName}`] = func;
+		// this.proxy[`_sqlocal_func_${funcName}`] = func;
 	};
 
 	getDatabaseInfo = async (): Promise<DatabaseInfo> => {
@@ -393,7 +404,7 @@ export class SQLocal {
 		this.worker.removeEventListener('message', this.processMessageEvent);
 		this.queriesInProgress.clear();
 		this.userCallbacks.clear();
-		this.worker.terminate();
+		// this.worker.terminate();
 		this.isWorkerDestroyed = true;
 	};
 }
